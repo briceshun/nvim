@@ -50,6 +50,42 @@ install_lazygit() {
     echo "✅ lazygit installed successfully"
 }
 
+install_lazydocker() {
+    echo "📦 Installing lazydocker..."
+    
+    case "$OS" in
+        Darwin*)
+            # macOS
+            if command -v brew &> /dev/null; then
+                brew install lazydocker
+            else
+                echo "❌ Homebrew not found. Please install Homebrew first."
+                exit 1
+            fi
+            ;;
+        Linux*)
+            # Linux
+            if command -v apt-get &> /dev/null || command -v pacman &> /dev/null || command -v dnf &> /dev/null; then
+                # Install via GitHub releases
+                LAZYDOCKER_VERSION=$(curl -s "https://api.github.com/repos/jesseduffield/lazydocker/releases/latest" | grep -Po '"tag_name": "v\K[^"]*')
+                curl -Lo lazydocker.tar.gz "https://github.com/jesseduffield/lazydocker/releases/latest/download/lazydocker_${LAZYDOCKER_VERSION}_Linux_x86_64.tar.gz"
+                tar xf lazydocker.tar.gz lazydocker
+                sudo install lazydocker /usr/local/bin
+                rm lazydocker lazydocker.tar.gz
+            else
+                echo "❌ Unsupported Linux distribution"
+                exit 1
+            fi
+            ;;
+        *)
+            echo "❌ Unsupported operating system: $OS"
+            exit 1
+            ;;
+    esac
+    
+    echo "✅ lazydocker installed successfully"
+}
+
 install_superfile() {
     echo "📦 Installing superfile..."
     
@@ -117,13 +153,21 @@ install_dev_tools() {
             fi
             
             # Install neovim Python module
-            echo "  → Installing neovim Python module..."
-            pip3 install --user --upgrade pynvim
+            if ! python3 -c "import pynvim" &> /dev/null; then
+                echo "  → Installing neovim Python module..."
+                pip3 install --user --upgrade pynvim
+            else
+                echo "  ✓ pynvim already installed"
+            fi
             
             # Install neovim Node.js module
             if command -v npm &> /dev/null; then
-                echo "  → Installing neovim npm package..."
-                npm install -g neovim
+                if ! npm list -g neovim &> /dev/null; then
+                    echo "  → Installing neovim npm package..."
+                    npm install -g neovim
+                else
+                    echo "  ✓ neovim npm package already installed"
+                fi
             fi
             ;;
         Linux*)
@@ -145,11 +189,21 @@ install_dev_tools() {
             fi
             
             # Install Python neovim module
-            pip3 install --user --upgrade pynvim
+            if ! python3 -c "import pynvim" &> /dev/null; then
+                echo "  → Installing neovim Python module..."
+                pip3 install --user --upgrade pynvim
+            else
+                echo "  ✓ pynvim already installed"
+            fi
             
             # Install Node.js neovim module
             if command -v npm &> /dev/null; then
-                npm install -g neovim
+                if ! npm list -g neovim &> /dev/null; then
+                    echo "  → Installing neovim npm package..."
+                    npm install -g neovim
+                else
+                    echo "  ✓ neovim npm package already installed"
+                fi
             fi
             ;;
     esac
@@ -164,6 +218,13 @@ else
     install_lazygit
 fi
 
+# Check if lazydocker is already installed
+if command -v lazydocker &> /dev/null; then
+    echo "✓ lazydocker is already installed ($(lazydocker --version))"
+else
+    install_lazydocker
+fi
+
 # Check if superfile is already installed
 if command -v spf &> /dev/null; then
     echo "✓ superfile is already installed"
@@ -175,11 +236,24 @@ fi
 echo ""
 install_dev_tools
 
+# Configure shell aliases
+echo ""
+echo "⚙️  Configuring shell aliases..."
+
+# Add lazydocker alias if not already present
+if ! grep -q "alias lzd='lazydocker'" ~/.zshrc 2>/dev/null; then
+    echo "alias lzd='lazydocker'" >> ~/.zshrc
+    echo "  ✓ Added 'lzd' alias for lazydocker"
+else
+    echo "  ✓ 'lzd' alias already configured"
+fi
+
 echo ""
 echo "🎉 Setup complete!"
 echo ""
 echo "Installed tools:"
 echo "  - lazygit: Run 'lazygit' in any git repository"
+echo "  - lazydocker: Run 'lazydocker' or 'lzd' to manage Docker containers"
 echo "  - superfile: Run 'spf' to launch the file manager"
 echo "  - ripgrep: Fast text search (rg)"
 echo "  - fd: Fast file finder"
